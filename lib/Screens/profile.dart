@@ -1,8 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:load_monitoring_mobile_app/Screens/change_email.dart';
-import 'change_password_page.dart';
+import 'package:load_monitoring_mobile_app/Screens/change_password_page.dart';
+import '../main.dart'; // for kPrimaryGreen
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,71 +17,117 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   File? _avatarFile;
-  String _username = 'UserName';
   bool _editingUsername = false;
   final ImagePicker _picker = ImagePicker();
+  late String _username;
+  late String _email;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = FirebaseAuth.instance.currentUser!;
+    _username = user.displayName ?? user.email!.split('@').first;
+    _email = user.email ?? '';
+  }
 
   Future<void> _pickAvatar() async {
     final picked = await showModalBottomSheet<XFile?>(
       context: context,
       builder: (_) => SafeArea(
-        child: Wrap(children: [
-          ListTile(
-            leading: const Icon(Icons.photo_camera),
-            title: const Text('Camera'),
-            onTap: () async {
-              Navigator.pop(
-                  context,
-                  await _picker.pickImage(source: ImageSource.camera));
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.photo_library),
-            title: const Text('Gallery'),
-            onTap: () async {
-              Navigator.pop(
-                  context,
-                  await _picker.pickImage(source: ImageSource.gallery));
-            },
-          ),
-        ]),
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Camera'),
+              onTap: () async {
+                Navigator.pop(context,
+                    await _picker.pickImage(source: ImageSource.camera));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () async {
+                Navigator.pop(context,
+                    await _picker.pickImage(source: ImageSource.gallery));
+              },
+            ),
+          ],
+        ),
       ),
     );
-    if (picked != null) setState(() => _avatarFile = File(picked.path));
+
+    if (picked != null) {
+      setState(() => _avatarFile = File(picked.path));
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final fileName =
+            '${user.uid}_${DateTime.now().millisecondsSinceEpoch}${path.extension(picked.path)}';
+        final ref = firebase_storage.FirebaseStorage.instance
+            .ref()
+            .child('profile_pics/$fileName');
+
+        await ref.putFile(File(picked.path));
+        final downloadURL = await ref.getDownloadURL();
+
+        await user.updatePhotoURL(downloadURL);
+        setState(() {}); // refresh avatar
+      }
+    }
+  }
+
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+    // Navigation handled by main.dart StreamBuilder
   }
 
   @override
   Widget build(BuildContext ctx) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         title: const Text('Your Profile'),
+        actions: [
+          IconButton(
+            onPressed: _logout,
+            icon: const Icon(Icons.logout, color: Colors.redAccent),
+          )
+        ],
       ),
       body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           Center(
             child: Stack(
               alignment: Alignment.bottomRight,
               children: [
                 CircleAvatar(
-                  radius: 48,
+                  radius: 50,
                   backgroundColor: Colors.grey[800],
                   backgroundImage: _avatarFile != null
                       ? FileImage(_avatarFile!)
-                      : const NetworkImage(
-                              'https://example.com/default-avatar.png')
-                          as ImageProvider,
+                      : (user?.photoURL != null
+                          ? NetworkImage(user!.photoURL!)
+                          : const AssetImage('assets/default-avatar.png'))
+                      as ImageProvider,
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.greenAccent),
-                  onPressed: _pickAvatar,
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: kPrimaryGreen,
+                  child: IconButton(
+                    icon: const Icon(Icons.edit, size: 16, color: Colors.black),
+                    onPressed: _pickAvatar,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Center(
             child: _editingUsername
                 ? SizedBox(
@@ -85,18 +135,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: TextField(
                       autofocus: true,
                       controller: TextEditingController(text: _username),
-                      style:
-                          const TextStyle(color: Colors.white, fontSize: 20),
+                      style: const TextStyle(color: Colors.white, fontSize: 20),
                       decoration: const InputDecoration(
                         border: UnderlineInputBorder(),
                         hintText: 'Enter your name',
                         hintStyle: TextStyle(color: Colors.grey),
                       ),
-                      onSubmitted: (val) {
-                        setState(() {
-                          if (val.trim().isNotEmpty) _username = val.trim();
-                          _editingUsername = false;
-                        });
+                      onSubmitted: (val) async {
+                        if (val.trim().isNotEmpty) {
+                          await FirebaseAuth.instance.currentUser!
+                              .updateDisplayName(val.trim());
+                          setState(() => _username = val.trim());
+                        }
+                        setState(() => _editingUsername = false);
                       },
                     ),
                   )
@@ -112,46 +163,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
           ),
           const SizedBox(height: 8),
-          const Center(
-            child: Text('user@example.com',
-                style: TextStyle(color: Colors.grey)),
+          Center(
+            child: Text(_email, style: const TextStyle(color: Colors.grey)),
           ),
           const SizedBox(height: 32),
-
-          // Detailed account settings
-          _SectionHeader('Account Settings'),
-          
+          const _SectionHeader('Account Settings'),
           _SettingsTile(
-            title: 'Change email',
-            icon: Icons.arrow_forward,
-            onTap: () => Navigator.push(
-                ctx,
-                MaterialPageRoute(
-                    builder: (_) => const ChangeEmailScreen())),
+            title: 'Change Email',
+            icon: Icons.email_outlined,
+            onTap: () => Navigator.of(ctx).push(
+              MaterialPageRoute(builder: (_) => const ChangeEmailScreen()),
+            ),
           ),
-            _SettingsTile(
+          _SettingsTile(
             title: 'Change Password',
-            icon: Icons.arrow_forward,
-            onTap: () => Navigator.push(
-                ctx,
-                MaterialPageRoute(
-                    builder: (_) => const ChangePasswordPage())),
+            icon: Icons.lock_outline,
+            onTap: () => Navigator.of(ctx).push(
+              MaterialPageRoute(builder: (_) => const ChangePasswordPage()),
+            ),
           ),
-
-
-
-          const SizedBox(height: 24),
-         
-          _SettingsTile(
-          title: 'Logout',
-          icon: Icons.logout,
-          onTap: () {
-    // TODO: Implement logout logic (maybe clear auth and navigate to login)
-           },
-),
-
-
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
         ],
       ),
     );
@@ -160,16 +191,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
 class _SectionHeader extends StatelessWidget {
   final String text;
-  const _SectionHeader(this.text, {Key? key}) : super(key: key);
+  const _SectionHeader(this.text);
+
   @override
-  Widget build(BuildContext ctx) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Text(text.toUpperCase(),
+  Widget build(BuildContext ctx) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Text(
+          text.toUpperCase(),
           style: const TextStyle(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-    );
-  }
+              color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+      );
 }
 
 class _SettingsTile extends StatelessWidget {
@@ -178,19 +210,16 @@ class _SettingsTile extends StatelessWidget {
   final VoidCallback onTap;
 
   const _SettingsTile({
-    Key? key,
     required this.title,
     required this.icon,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
-  Widget build(BuildContext ctx) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      trailing: Icon(icon, color: Colors.grey),
-      onTap: onTap,
-    );
-  }
+  Widget build(BuildContext ctx) => ListTile(
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        trailing: Icon(icon, color: Colors.grey),
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      );
 }

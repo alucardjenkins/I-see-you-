@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../main.dart'; // for kPrimaryGreen
 import '../widgets/device_card.dart';
-import 'package:load_monitoring_mobile_app/Screens/devices.dart';
-
+import 'package:load_monitoring_mobile_app/Widgets/devices.dart';
 class DeviceScreen extends StatefulWidget {
   const DeviceScreen({super.key});
 

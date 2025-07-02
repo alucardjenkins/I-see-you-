@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../main.dart';
-import 'package:load_monitoring_mobile_app/Screens/devices.dart';
+import 'package:load_monitoring_mobile_app/Widgets/devices.dart';
 
 class DeviceCard extends StatelessWidget {
   final Device device;

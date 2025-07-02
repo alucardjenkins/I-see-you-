@@ -12,7 +12,20 @@
           "package_name": "com.finalyearproject.load_monitoring_mobile_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "917446233229-mnrnjnp9rtni1ct4obuuouqoga0sneas.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.finalyearproject.load_monitoring_mobile_app",
+            "certificate_hash": "ff17e9b71d6ba10511dfceac37b6d81ccc11697c"
+          }
+        },
+        {
+          "client_id": "917446233229-acpcf5ap4n3pm45dmkras6mqujcp8kcu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyD_mANWLeZvgPRgqvko5yOjjrG008VVPb8"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "917446233229-acpcf5ap4n3pm45dmkras6mqujcp8kcu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -12,7 +12,7 @@ import 'package:load_monitoring_mobile_app/Screens/verify_email_screen.dart';
 import 'package:load_monitoring_mobile_app/Screens/register_screen.dart';
 import 'package:load_monitoring_mobile_app/Screens/splash_screen.dart';
 
-const Color kPrimaryGreen = Colors.greenAccent;
+const Color kPrimaryGreen = Color(0xFF00C853); 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,14 +38,12 @@ class SmartHomeApp extends StatelessWidget {
       ),
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (c, s) {
-          if (s.connectionState == ConnectionState.waiting) {
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          } else if (s.hasData) {
+          } else if (snapshot.hasData) {
             final user = FirebaseAuth.instance.currentUser!;
-            return user.emailVerified
-                ? const MainScreen()
-                : const VerifyEmailScreen();
+            return user.emailVerified ? const MainScreen() : const VerifyEmailScreen();
           } else {
             return const LoginScreen();
           }
@@ -53,10 +51,10 @@ class SmartHomeApp extends StatelessWidget {
       ),
       initialRoute: '/splash',
       routes: {
-        '/splash': (c) => const SplashScreen(),
-        '/login': (c) => const LoginScreen(),
-        '/register': (c) => const RegisterScreen(),
-        '/verify': (c) => const VerifyEmailScreen(),
+        '/splash': (context) => const SplashScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/verify': (context) => const VerifyEmailScreen(),
       },
     );
   }
@@ -70,19 +68,15 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
-  late final String username;
-
-  @override
-  void initState() {
-    super.initState();
-    final user = FirebaseAuth.instance.currentUser;
-    username = user?.displayName ??
-        user?.email?.split('@')[0] ??
-        'User';
-  }
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser!;
+    final username = user.displayName ?? user.email?.split('@')[0] ?? 'User';
+    final avatarImage = (user.photoURL != null && user.photoURL!.isNotEmpty)
+        ? NetworkImage(user.photoURL!)
+        : null;
+
     final screens = [
       HomeScreen(),
       const DeviceScreen(),
@@ -99,8 +93,7 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             const Icon(Icons.remove_red_eye_outlined, color: kPrimaryGreen),
             const SizedBox(width: 8),
-            Text(titles[_currentIndex],
-                style: const TextStyle(color: Colors.white)),
+            Text(titles[_currentIndex], style: const TextStyle(color: Colors.white)),
           ],
         ),
         actions: [
@@ -113,43 +106,42 @@ class _MainScreenState extends State<MainScreen> {
             },
           ),
           PopupMenuButton<String>(
-            icon: const CircleAvatar(
-              backgroundColor: kPrimaryGreen,
-              child: Icon(Icons.person, color: Colors.black),
+            icon: CircleAvatar(
+              backgroundColor: Colors.black,
+              backgroundImage: avatarImage,
+              child: avatarImage == null
+                  ? const Icon(Icons.person, color: kPrimaryGreen)
+                  : null,
             ),
             color: Colors.grey[900],
             itemBuilder: (_) => [
               PopupMenuItem<String>(
                 enabled: false,
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     const Icon(Icons.person, color: kPrimaryGreen),
-                    Text(username,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 8),
+                    Text(username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
               const PopupMenuDivider(),
               const PopupMenuItem<String>(
                 value: 'profile',
-                child: Text('Manage Profile',
-                    style: TextStyle(color: Colors.white)),
+                child: Text('Manage Profile', style: TextStyle(color: Colors.white)),
               ),
               const PopupMenuDivider(),
               const PopupMenuItem<String>(
                 value: 'logout',
-                child: Text('Log Out',
-                    style: TextStyle(color: Colors.redAccent)),
+                child: Text('Log Out', style: TextStyle(color: Colors.redAccent)),
               ),
             ],
-            onSelected: (v) {
-              if (v == 'profile') {
-                Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const ProfileScreen()));
-              } else if (v == 'logout') {
+            onSelected: (value) {
+              if (value == 'profile') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
+              } else if (value == 'logout') {
                 FirebaseAuth.instance.signOut();
               }
             },
@@ -160,7 +152,7 @@ class _MainScreenState extends State<MainScreen> {
       body: screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
+        onTap: (index) => setState(() => _currentIndex = index),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Devices'),

@@ -1,5 +1,5 @@
-
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -12,13 +12,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
 
-  void _resetPassword() {
+  Future<void> _resetPassword() async {
     if (_formKey.currentState!.validate()) {
       final email = _emailController.text.trim();
-      // TODO: Add backend functionality to send password reset email
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Password reset link sent to \$email')),
-      );
+
+      try {
+        await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Password reset link sent to $email')),
+        );
+      } on FirebaseAuthException catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Error sending reset email')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('An unexpected error occurred')),
+        );
+      }
     }
   }
 
@@ -30,10 +41,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         backgroundColor: Colors.black,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text("Forgot Password", style: TextStyle(color: Colors.white)),
+        title: const Text("Forgot Password", style: TextStyle(color: Colors.white)),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -42,23 +53,25 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Enter your email to reset your password",
-                  style: TextStyle(color: Colors.white, fontSize: 16)),
-              SizedBox(height: 25),
+              const Text(
+                "Enter your email to reset your password.",
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              const SizedBox(height: 25),
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
-                style: TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Email',
-                  hintStyle: TextStyle(color: Colors.grey),
-                  enabledBorder: OutlineInputBorder(
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  enabledBorder: const OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey),
                   ),
-                  focusedBorder: OutlineInputBorder(
+                  focusedBorder: const OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.greenAccent),
                   ),
-                  errorStyle: TextStyle(color: Colors.redAccent),
+                  errorStyle: const TextStyle(color: Colors.redAccent),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -69,16 +82,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   return null;
                 },
               ),
-              SizedBox(height: 40),
+              const SizedBox(height: 40),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.greenAccent,
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                  minimumSize: Size(double.infinity, 0),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  minimumSize: const Size(double.infinity, 0),
                 ),
                 onPressed: _resetPassword,
-                child: Text("Send Reset Link", style: TextStyle(color: Colors.black)),
-              )
+                child: const Text(
+                  "Send Reset Link",
+                  style: TextStyle(color: Colors.black),
+                ),
+              ),
             ],
           ),
         ),
